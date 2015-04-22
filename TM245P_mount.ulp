@@ -26,7 +26,7 @@ if (board) board(B) {
 	      "#Stack_S,X1,Y1,X2,Y2,Pick Depth,Place Depth,Pick Delay,Place Delay,SizeX,SizeY,"
 	      "Rate,Speed,Torque,Vacuum 1,Vacuum 2,Vacuum Off,Calibration,Skip,Chip X,Chip Y,"
 	      "Loop X,Loop Y\n#Circuit,OffsetX,OffsetY,Skip,,,,,,,,,,,,,,,,,,,\n"
-	      "10201,0,0,0,,\n", B.name);
+	      "10201,0,0,0,,\n#Component,Nozzle,Stack,X,Y,Angle,Skip,,,,,,,,,,,,,,,,\n", B.name);
 
     B.elements(E) {
       int wasSmd = 0,
@@ -57,7 +57,7 @@ if (board) board(B) {
 		    else if(E.angle > 270 && E.angle < 361)
 		      angle = -90 + (360-E.angle);
 
-	      printf("%d,1,,%d,%d,%.0f,0,%s,%s-%s\n",
+	      printf("%d,1,,%.0f,%.0f,%.0f,0,%s,%s-%s\n",
             line++, u2mic((xmin + xmax)/2), u2mic((ymin + ymax)/2),
             angle, E.name, E.value, E.package.name);
 	    }
@@ -76,7 +76,7 @@ if (board) board(B) {
 	      "#Stack_S,X1,Y1,X2,Y2,Pick Depth,Place Depth,Pick Delay,Place Delay,SizeX,SizeY,"
 	      "Rate,Speed,Torque,Vacuum 1,Vacuum 2,Vacuum Off,Calibration,Skip,Chip X,Chip Y,"
 	      "Loop X,Loop Y\n#Circuit,OffsetX,OffsetY,Skip,,,,,,,,,,,,,,,,,,,\n"
-	      "10201,0,0,0,,\n", B.name);
+	      "10201,0,0,0,,\n#Component,Nozzle,Stack,X,Y,Angle,Skip,,,,,,,,,,,,,,,,\n", B.name);
 
     B.elements(E) {
       int wasSmd = 0,
@@ -107,7 +107,7 @@ if (board) board(B) {
 		    else if(E.angle > 270 && E.angle < 361)
 		      angle = -90 + (360-E.angle);
 
-	      printf("%d,1,,%d,%d,%.0f,0,%s,%s-%s\n",
+	      printf("%d,1,,%.0f,%.0f,%.0f,0,%s,%s-%s\n",
             line++, u2mic((xmin + xmax)/2), u2mic((ymin + ymax)/2),
             angle, E.name, E.value, E.package.name);
 	    }
