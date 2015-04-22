@@ -1,0 +1,119 @@
+#usage "<b>Data generation for TM245P mounting machines</b>\n"
+       "<p>"
+       "Generates config files for smds on the top and bottom layers "
+       "wich can be used with Neoden TM245P pick and place machines. "
+       "The x and y coordinates (units: microns) of the SMD elements "
+       "are calculated as mean of maximum and mimimum value of the "
+       "smds origin points. The calculated value does not necessarily "
+       "fit with the origin point of the part in the layout."
+       "<p>"
+       "<author>Author: Patrick Van Oosterwijck (patrick@silicognition.com),"
+       "adapted from code found on DangerousPrototypes.com</author>"
+
+// THIS PROGRAM IS PROVIDED AS IS AND WITHOUT WARRANTY OF ANY KIND, EXPRESSED OR IMPLIED
+
+if (board) board(B) {
+
+  // Get filename
+  string fileName = dlgFileSave("Top - Save File", filesetext(B.name, "-top.csv"), "*.csv");
+  if (fileName == "") exit(0);
+
+  output(fileName) {
+    int line = 1;
+
+	  printf("#%s TOP\n#Stack,X1,Y1,X2,Y2,Pick Depth,Place Depth,Pick Delay,Place Delay,SizeX,"
+	      "SizeY,Rate,Speed,Torque,Vacuum 1,Vacuum 2,Vacuum Off,Calibration,Skip,,,,\n"
+	      "#Stack_S,X1,Y1,X2,Y2,Pick Depth,Place Depth,Pick Delay,Place Delay,SizeX,SizeY,"
+	      "Rate,Speed,Torque,Vacuum 1,Vacuum 2,Vacuum Off,Calibration,Skip,Chip X,Chip Y,"
+	      "Loop X,Loop Y\n#Circuit,OffsetX,OffsetY,Skip,,,,,,,,,,,,,,,,,,,\n"
+	      "10201,0,0,0,,\n", B.name);
+
+    B.elements(E) {
+      int wasSmd = 0,
+          xmax =-2147483648,
+          xmin = 2147483647,
+          ymax = xmax,
+          ymin = xmin;
+      real angle = 0;
+
+      E.package.contacts(C) {
+        if (C.smd && C.smd.layer == 1) {
+          wasSmd = 1;
+
+          if (C.x > xmax) xmax = C.x;
+          if (C.y > ymax) ymax = C.y;
+          if (C.x < xmin) xmin = C.x;
+          if (C.y < ymin) ymin = C.y;
+        }
+      }
+      
+      if (wasSmd) {
+		    if(E.angle >= 0 && E.angle < 91)
+		      angle = -180 + (90-E.angle);		
+		    else if(E.angle > 90 && E.angle < 181)
+		      angle = 90 + (180-E.angle);
+		    else if(E.angle > 180 && E.angle < 271)
+		      angle = 0 + (270-E.angle);
+		    else if(E.angle > 270 && E.angle < 361)
+		      angle = -90 + (360-E.angle);
+
+	      printf("%d,1,,%d,%d,%.0f,0,%s,%s-%s\n",
+            line++, u2mic((xmin + xmax)/2), u2mic((ymin + ymax)/2),
+            angle, E.name, E.value, E.package.name);
+	    }
+    }
+  }
+
+  // Get filename
+  fileName = dlgFileSave("Bottom - Save File", filesetext(B.name, "-bot.csv"), "*.csv");
+  if (fileName == "") exit(0);
+
+  output(fileName) {
+    int line = 1;
+
+	  printf("#%s BOTTOM\n#Stack,X1,Y1,X2,Y2,Pick Depth,Place Depth,Pick Delay,Place Delay,SizeX,"
+	      "SizeY,Rate,Speed,Torque,Vacuum 1,Vacuum 2,Vacuum Off,Calibration,Skip,,,,\n"
+	      "#Stack_S,X1,Y1,X2,Y2,Pick Depth,Place Depth,Pick Delay,Place Delay,SizeX,SizeY,"
+	      "Rate,Speed,Torque,Vacuum 1,Vacuum 2,Vacuum Off,Calibration,Skip,Chip X,Chip Y,"
+	      "Loop X,Loop Y\n#Circuit,OffsetX,OffsetY,Skip,,,,,,,,,,,,,,,,,,,\n"
+	      "10201,0,0,0,,\n", B.name);
+
+    B.elements(E) {
+      int wasSmd = 0,
+          xmax =-2147483648,
+          xmin = 2147483647,
+          ymax = xmax,
+          ymin = xmin;
+      real angle = 0;
+
+      E.package.contacts(C) {
+        if (C.smd && C.smd.layer == 16) {
+          wasSmd = 1;
+
+          if (C.x > xmax) xmax = C.x;
+          if (C.y > ymax) ymax = C.y;
+          if (C.x < xmin) xmin = C.x;
+          if (C.y < ymin) ymin = C.y;
+        }
+      }
+
+      if (wasSmd) {
+		    if(E.angle >= 0 && E.angle < 91)
+		      angle = -180 + (90-E.angle);		
+		    else if(E.angle > 90 && E.angle < 181)
+		      angle = 90 + (180-E.angle);
+		    else if(E.angle > 180 && E.angle < 271)
+		      angle = 0 + (270-E.angle);
+		    else if(E.angle > 270 && E.angle < 361)
+		      angle = -90 + (360-E.angle);
+
+	      printf("%d,1,,%d,%d,%.0f,0,%s,%s-%s\n",
+            line++, u2mic((xmin + xmax)/2), u2mic((ymin + ymax)/2),
+            angle, E.name, E.value, E.package.name);
+	    }
+    }
+  }
+} else {
+  dlgMessageBox("\n    Start this ULP in a Board    \n");
+  exit(0);
+}
