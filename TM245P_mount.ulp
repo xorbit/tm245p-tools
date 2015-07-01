@@ -48,14 +48,10 @@ if (board) board(B) {
       }
       
       if (wasSmd) {
-		    if(E.angle >= 0 && E.angle < 91)
-		      angle = -180 + (90-E.angle);		
-		    else if(E.angle > 90 && E.angle < 181)
-		      angle = 90 + (180-E.angle);
-		    else if(E.angle > 180 && E.angle < 271)
-		      angle = 0 + (270-E.angle);
-		    else if(E.angle > 270 && E.angle < 361)
-		      angle = -90 + (360-E.angle);
+		    if(E.angle <= 180)
+		      angle = E.angle;
+		    else
+		      angle = E.angle - 360;
 
 	      printf("%d,1,,%.0f,%.0f,%.0f,0,%s,%s-%s\n",
             line++, u2mic((xmin + xmax)/2), u2mic((ymin + ymax)/2),
@@ -98,14 +94,10 @@ if (board) board(B) {
       }
 
       if (wasSmd) {
-		    if(E.angle >= 0 && E.angle < 91)
-		      angle = -180 + (90-E.angle);		
-		    else if(E.angle > 90 && E.angle < 181)
-		      angle = 90 + (180-E.angle);
-		    else if(E.angle > 180 && E.angle < 271)
-		      angle = 0 + (270-E.angle);
-		    else if(E.angle > 270 && E.angle < 361)
-		      angle = -90 + (360-E.angle);
+		    if(E.angle <= 180)
+		      angle = E.angle;
+		    else
+		      angle = E.angle - 360;
 
 	      printf("%d,1,,%.0f,%.0f,%.0f,0,%s,%s-%s\n",
             line++, u2mic((xmin + xmax)/2), u2mic((ymin + ymax)/2),
