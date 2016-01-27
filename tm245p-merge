@@ -1,0 +1,182 @@
+#!/usr/bin/env python
+#
+# tm245p-merge
+# Merge TM245P stack definition with placement data output from Eagle ULP
+# to generate complete TM245P pick and place file.
+#
+# Copyright (c) 2016 Patrick Van Oosterwijck
+# Released under MIT license
+
+import csv
+import sys
+from collections import namedtuple
+
+
+def parse_csv_file(filename):
+  """Parse a file with TM245P CSV format and return an object containing
+  the stack, board and part definitions"""
+  # Create return object
+  ret = {
+    'stack': [],
+    'board': [],
+    'part': []
+  }
+  # Open the CSV file
+  with open(filename, 'rb') as csvfile:
+    # Create parser and parse every row
+    reader = csv.reader(csvfile)
+    for row in reader:
+      try:
+        # Convert first field to number
+        rownumber = int(row[0])
+        # Is it a board definition?
+        if rownumber > 10200:
+          # Parse as board definition
+          BoardDef = namedtuple('BoardDef', 'board_id offset_x offset_y skip')
+          board = BoardDef._make(row[:4])
+          # Add board definition
+          ret['board'].append(board)
+        # Is it a stack definition?
+        elif rownumber > 10000:
+          # Parse as stack definition (extended with our metadata)
+          StackDef = namedtuple('StackDef', 'stack_id x1 y1 x2 y2 pick_depth '
+                     + 'place_depth pick_delay place_delay size_x size_y '
+                     + 'rate speed torque vacuum1 vacuum2 vacuum_off '
+                     + 'calibration skip chip_x chip_y loop_x loop_y '
+                     + 'angle nozzle values')
+          stack = StackDef._make(row[:26] + ['' for x in range(26-len(row))])
+          stack = stack._replace(values=row[25:])
+          # Add stack definition
+          ret['stack'].append(stack)
+        # Is is a part definition
+        elif rownumber > 0:
+          # Parse as part definition
+          PartDef = namedtuple('PartDef', 'part_id nozzle stack x y angle '
+                    + 'skip name value')
+          part = PartDef._make(row[:9])
+          # Add part definition
+          ret['part'].append(part)
+      except:
+        # Ignore comments, empty lines and other lines that don't parse
+        continue
+  # Return the parse result
+  return ret
+
+def parse_int(s, base=10, default=0):
+  """Helper to parse ints without exceptions"""
+  try:
+    return int(s, base)
+  except ValueError:
+    return default
+    
+def merge_stack_part(stack_obj, board_obj, part_obj):
+  """Merge the stack definitions from the first object and board definitions
+  from the second object with the part definitions in the third object,
+  applying stack numbers, part rotation and nozzle selection to the parts,
+  and return a new combined object which contains used stacks, boards and
+  processed parts"""
+  # Create return object
+  ret = {
+    'stack': [],
+    'board': board_obj['board'],
+    'part': []
+  }
+  # Create an index of part values
+  index = {}
+  for stack in stack_obj['stack']:
+    for value in stack.values:
+      if value in index:
+        print "WARNING: Multiple stack definitions for \"%s\"" % value
+      index[value] = stack
+  # Create a dictionary of used stacks
+  used_stack = {}
+  # Init last nozzle used and part id
+  last_nozzle = 2
+  part_id = 1
+  # Iterate over the parts
+  for part in sorted(part_obj['part'], key=lambda part: part.value +
+                      str(len(part.name)) + part.name):
+    # Find the stack for this part
+    stack = index.get(part.value)
+    # Check whether we found a stack
+    if stack:
+      # Calculate angle by applying stack rotation
+      angle = (parse_int(part.angle) + parse_int(stack.angle)) % 360
+      if angle > 180: angle -= 360
+      # Set nozzle to use
+      nozzle = parse_int(stack.nozzle)
+      if nozzle != 1 and nozzle != 2:
+        nozzle = 2 if last_nozzle == 1 else 1
+      # Remember last nozzle used
+      last_nozzle = nozzle
+      # Set stack number, part rotation and nozzle to use
+      new_part = part._replace(part_id=part_id,
+                              stack=parse_int(stack.stack_id) - 10000,
+                              angle=angle, nozzle=nozzle)
+      # Add the part to the return object
+      ret['part'].append(new_part)
+      # Mark the stack as used
+      used_stack[stack.stack_id] = stack
+      # Next part id
+      part_id += 1
+    else:
+      print "WARNING: No stack definition for %s: \"%s\"" % (part.name,
+            part.value)
+  # Set the stacks on the return object
+  ret['stack'] = used_stack.values()
+  # Return the combined object
+  return ret
+
+def write_csv_file(csv_file, obj):
+  """Write out the TM245P CSV file from the provided object"""
+  # Stack comment header
+  csv_file.write("#Stack,X1,Y1,X2,Y2,Pick Depth,Place Depth,Pick Delay,"
+            + "Place Delay,SizeX,SizeY,Rate,Speed,Torque,Vacuum 1,Vacuum 2,"
+            + "Vacuum Off,Calibration,Skip,Chip X,Chip Y,Loop X,Loop Y,"
+            + "Angle,Nozzle,Value Matches\n")
+  # Output stack definitions
+  for stack in sorted(obj['stack'], key=lambda stack: stack.stack_id):
+    csv_file.write(("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,"
+            + "%s,%s,%s,%s,%s,%s,%s,") % (stack.stack_id, stack.x1, stack.y1,
+            stack.x2, stack.y2, stack.pick_depth, stack.place_depth,
+            stack.pick_delay, stack.place_delay, stack.size_x, stack.size_y,
+            stack.rate, stack.speed, stack.torque, stack.vacuum1,
+            stack.vacuum2, stack.vacuum_off, stack.calibration, stack.skip,
+            stack.chip_x, stack.chip_y, stack.loop_x, stack.loop_y,
+            stack.angle, stack.nozzle))
+    for value in stack.values:
+      csv_file.write("%s," % value)
+    csv_file.write("\n")
+  # Board comment header
+  csv_file.write("#Board,OffsetX,OffsetY,Skip\n")
+  # Output circuit board definitions
+  for board in obj['board']:
+    csv_file.write("%s,%s,%s,%s\n" % (board.board_id, board.offset_x,
+          board.offset_y, board.skip))
+  # Part comment header
+  csv_file.write("#Part,Nozzle,Stack,X,Y,Angle,Skip,Name,Value\n")
+  # Output part definitions
+  for part in obj['part']:
+    csv_file.write("%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % (part.part_id,
+          part.nozzle, part.stack, part.x, part.y, part.angle, part.skip,
+          part.name, part.value))
+
+# Check whether we got 3 file name parameters
+if len(sys.argv) < 4:
+  print "USAGE: tm245p-merge <stacks_and_boards.csv> <parts.csv> <output.csv>"
+else:  
+  # Load and parse input files
+  stack_obj = parse_csv_file(sys.argv[1])
+  part_obj = parse_csv_file(sys.argv[2])
+  # Process files to generate output
+  output = merge_stack_part(stack_obj, stack_obj, part_obj)
+  # Write output file
+  f = open(sys.argv[3], 'w')
+  f.write("# %s generated by tm245p-merge\n" % sys.argv[3])
+  f.write("# Stacks/boards from %s and parts from %s)\n" %
+            (sys.argv[1], sys.argv[2]))
+  write_csv_file(f, output)
+  f.close()
+  # Report success
+  print "Wrote output file \"%s\"" % sys.argv[3]
+
